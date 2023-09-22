@@ -1,0 +1,276 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+
+  <head>
+
+    <title>TensorFlow.js Linear Regression</title>
+
+    <meta charset="utf-8">
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Import the webpage's stylesheet -->
+
+  </head>  
+
+  <body>
+<h1>Neural Network Linear Regression Calculator</h1>
+    <canvas id ="canvas1"></canvas>
+    <div>
+    <lable>Epochs: </lable>
+    <input id="input1" type="text"/>
+    <lable>Learning Rate: </lable>
+    <input id="input2" type="text"/>
+    <lable>Epochs Count: </lable>
+  <span id = "epchos"></span>
+  </div>
+<div></div>
+<div style="width:10%; float:left">
+<div>
+  <lable>X Value:</lable>
+</div>
+   <textarea id="myTextarea" rows="20" cols="10"></textarea>
+  </div>
+  <div style="width:10%; float:left">
+  <div>
+    <lable>Y Value:</lable>
+  </div>
+    <textarea id="myTextarea1" rows="20" cols="10"></textarea>
+  </div>
+    <div style="clear:both"></div>
+    <button onclick="saveToArray()">Calculate</button>
+    
+
+    <!-- Import TensorFlow.js library -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js" type="text/javascript"></script>
+
+
+    <!-- Import the page's JavaScript to do some stuff -->
+
+  <script>
+var LEARNING_RATE;
+var input;
+var output;
+var model;
+var array = [];
+var array1 = [];
+var epochs;
+
+const canvas = document.getElementById('canvas1');
+ canvas.width = 400;
+canvas.height = 400;
+canvas.style.border="3px solid black"
+
+ const ctx = canvas.getContext('2d');
+
+
+
+
+function saveToArray() {
+  // Get the textarea element by its id
+
+  epochs = parseInt(document.getElementById("input1").value)
+  var textarea = document.getElementById("myTextarea");
+  var textarea1 = document.getElementById("myTextarea1");
+  
+  // Get the text content from the textarea and split it into lines
+  var text = textarea.value;
+  var lines = text.split("\n");
+
+  var text1 = textarea1.value;
+  var lines1 = text1.split("\n");
+
+  // Create an array to store the lines
+  var array = [];
+  var array1 = [];
+
+  // Add each line to the array
+  for (var i = 0; i < lines.length; i++) {
+   array.push(parseFloat(lines[i]));
+  }
+
+  for (var i = 0; i < lines1.length; i++) {
+   array1.push(parseFloat(lines1[i]));
+  }
+
+  // Now, you have the lines in the 'dataArray' variable
+  console.log(array);
+  console.log(array1);
+
+
+
+  
+async function trainModel() {
+
+
+
+  // Input feature pairs (House size, Number of Bedrooms)
+  var INPUTS = tf.tensor1d(array); // Convert Uint32Array to a regular array
+  input = normalize(INPUTS);
+
+  // Current listed house prices in dollars given their features above
+  // (target output values you want to predict).
+ var OUTPUTS = tf.tensor1d(array1); // Convert Uint32Array to a regular array
+ output = normalize(OUTPUTS);
+
+  model = tf.sequential();
+  model.add(tf.layers.dense({inputShape: [1], units: 1 }));
+  model.add(tf.layers.dense({ units: 1, activation: 'relu' }));
+  model.summary();
+ // Choose a suitable learning rate.
+
+ LEARNING_RATE = parseFloat(document.getElementById("input2").value)
+  // Compile the model with the defined learning rate and specify a loss function to use.
+  model.compile({
+    optimizer: tf.train.sgd(LEARNING_RATE),
+    loss: 'meanSquaredError',
+  });
+
+  // Finally, perform the training.
+  const results = await model.fit(input.NORMALIZED_VALUES, OUTPUTS, {
+    callbacks: {onEpochEnd: logProgress},
+    validationSplit: 0.00, // Take aside 15% of the data for validation testing.        // Ensure data is shuffled.
+    batchSize:2,         // You can adjust this value based on your dataset size.
+    epochs: epochs,            // Go over the data 10 times.
+  });
+
+  console.log('Average error loss: ' + Math.sqrt(results.history.loss[results.history.loss.length - 1]));
+  evaluate(model); // Once trained, evaluate the model.
+
+  
+ OUTPUTS.dispose();
+ INPUTS.dispose();
+
+}
+
+async function evaluate(model) {
+  let newInput = normalize(tf.tensor1d(array), input.MIN_VALUES, input.MAX_VALUES);
+
+
+    let output1 = model.predict(newInput.NORMALIZED_VALUES);
+
+    output1.print();
+
+}
+
+trainModel();
+
+
+
+
+function logProgress(epoch, logs){
+   // console.log('Data for epoch ' + epoch, logs.loss  );
+
+    let newInput = normalize(tf.tensor1d(array), input.MIN_VALUES, input.MAX_VALUES);
+
+
+    let output1 = model.predict(newInput.NORMALIZED_VALUES);
+
+  var x = output1.dataSync()
+
+ var arr = Array.from(x)  
+
+var weights = model.getWeights();
+
+var y = weights[0].dataSync()
+
+document.getElementById("epchos").innerHTML = epoch;
+
+var xSpacing = canvas.width / (arr.length - 1);
+
+// Define a function to draw the line
+function drawLine() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  ctx.moveTo(0, canvas.height - array[0]);
+
+  // Iterate through the array and draw the line
+  for (var i = 1; i < array.length; i++) {
+    ctx.lineTo(i * xSpacing, canvas.height - array[i]);
+  }
+
+  ctx.stroke();
+
+
+  ctx.strokeStyle = "blue";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  // Move to the starting point
+  ctx.moveTo(0, canvas.height - arr[0]);
+
+  // Iterate through the array and draw the line
+  for (var i = 1; i < arr.length; i++) {
+    ctx.lineTo(i * xSpacing, canvas.height - arr[i]);
+  }
+
+  ctx.stroke();
+}
+
+// Call the drawLine function to initially draw the line
+drawLine();
+
+  }
+
+
+
+
+
+  function normalize(tensor, min, max) {
+
+    const result = tf.tidy(function() {
+  
+      // Find the minimum value contained in the Tensor.
+  
+      const MIN_VALUES = min || tf.min(tensor, 0);
+
+    
+  
+   
+  
+      // Find the maximum value contained in the Tensor.
+  
+      const MAX_VALUES = max || tf.max(tensor, 0);
+  
+   
+  
+      // Now subtract the MIN_VALUE from every value in the Tensor
+  
+      // And store the results in a new Tensor.
+  
+      const TENSOR_SUBTRACT_MIN_VALUE = tf.sub(tensor, MIN_VALUES);
+  
+   
+  
+      // Calculate the range size of possible values.
+  
+      const RANGE_SIZE = tf.sub(MAX_VALUES, MIN_VALUES);
+  
+      // Calculate the adjusted values divided by the range size as a new Tensor.
+  
+      const NORMALIZED_VALUES = tf.div(TENSOR_SUBTRACT_MIN_VALUE, RANGE_SIZE);
+  
+   
+  
+      return {NORMALIZED_VALUES, MIN_VALUES, MAX_VALUES};
+  
+    });
+  
+    return result;
+  
+  
+  }
+}
+</script>
+
+  </body>
+
+</html>
